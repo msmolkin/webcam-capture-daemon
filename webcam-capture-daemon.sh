@@ -19,6 +19,9 @@ CAPTURE_DIR="$HOME/screen-recordings"
 LOG_DIR="$CAPTURE_DIR/logs"
 mkdir -p "$LOG_DIR"
 
+# Clean up any orphaned ffmpeg processes from previous runs that might be hogging CPU
+pkill -f "ffmpeg.*avfoundation.*-i 0" || true
+
 # Configurable FPS for webcam
 WEBCAM_FPS=1
 
