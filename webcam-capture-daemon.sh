@@ -50,7 +50,7 @@ while true; do
   # Capture webcam. Using low resolution to save space since it's just for reference.
   ffmpeg -f avfoundation -framerate "$WEBCAM_FPS" -i "$DEVICE_INDEX" \
     -vf "fps=$WEBCAM_FPS,scale=640:-2" \
-    -c:v libx264 -crf 32 -preset ultrafast \
+    -c:v libx264 -crf 32 -preset ultrafast -threads 1 \
     -movflags frag_keyframe+empty_moov \
     -t "$DURATION" \
     -y "$OUTFILE" \
