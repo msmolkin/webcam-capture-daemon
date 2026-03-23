@@ -70,5 +70,13 @@ while true; do
     fi
   done
 
+  # Check if we crossed midnight — if so, stitch the completed day
+  NEW_DATE=$(date +%Y-%m-%d)
+  if [ "$NEW_DATE" != "$DATE" ]; then
+    echo "[$(date)] Day rolled over. Stitching $DATE..."
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    "$SCRIPT_DIR/daily-stitch.sh" "$DATE" "webcam" >> "$LOG_DIR/webcam-${DATE}.log" 2>&1 || true
+  fi
+
   sleep 3
 done

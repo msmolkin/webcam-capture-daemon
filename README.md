@@ -18,13 +18,14 @@ Designed to be a "set and forget" companion to the [screen capture daemon](https
 - **macOS**
 - **ffmpeg** (Install via Homebrew: `brew install ffmpeg`)
 
-### 2. Setup Script
+### 2. Setup Scripts
 
-Copy the script to a location in your `PATH` (e.g., `/usr/local/bin/`):
+Copy the scripts to a location in your `PATH` (e.g., `/usr/local/bin/`):
 
 ```bash
 cp webcam-capture-daemon.sh /usr/local/bin/
-chmod +x /usr/local/bin/webcam-capture-daemon.sh
+cp daily-stitch.sh /usr/local/bin/
+chmod +x /usr/local/bin/webcam-capture-daemon.sh /usr/local/bin/daily-stitch.sh
 ```
 
 ### 3. Install the LaunchAgent
