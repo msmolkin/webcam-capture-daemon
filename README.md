@@ -6,11 +6,12 @@ Designed to be a "set and forget" companion to the [screen capture daemon](https
 
 ## Features
 
-- **Automated Capture:** Records at 1 FPS by default (configurable).
-- **Background Operation:** Runs as a macOS LaunchAgent.
-- **Robustness:** Handles system sleep/wake and automatic daily rotation.
+- **Automated Capture:** Records at 1 FPS by default (configurable via menubar).
+- **Background Operation:** Runs as a macOS LaunchAgent with `KeepAlive` — auto-restarts on `pkill`.
+- **Robustness:** Handles system sleep/wake, lid close/open, and automatic daily rotation.
 - **Low Impact:** Captures at 640px wide with high compression to minimize CPU and disk usage.
 - **Pause/Resume:** Supports pause and resume via `~/.capture_config` (controlled by the [CaptureMenuApp](https://github.com/msmolkin/screen-capture-daemon#capturemenuapp-menubar-controller) menubar controller).
+- **Adjustable FPS:** Frame rate can be changed live from the menubar without restarting.
 
 ## Installation
 
@@ -71,9 +72,9 @@ Error opening input: Input/output error
 
 4. **After granting permissions**, restart the daemon:
    ```bash
-   launchctl stop com.michaelcli.webcam-capture
-   launchctl start com.michaelcli.webcam-capture
+   pkill -f webcam-capture-daemon
    ```
+   The LaunchAgent will relaunch it automatically.
 
 **Note:** The "Screen Recording" permission (in the same Privacy & Security panel) is separate and only needed for the [Screen Capture Daemon](https://github.com/msmolkin/screen-capture-daemon). The webcam daemon only needs Camera access.
 
@@ -81,13 +82,20 @@ Error opening input: Input/output error
 
 - **`webcam-capture-daemon.sh`**:
    - Automatically finds the "FaceTime HD Camera" device index using `ffmpeg -list_devices`.
-   - Starts an `ffmpeg` process to capture at 1 FPS.
+   - Starts an `ffmpeg` process to capture at the configured FPS.
+   - Re-reads `~/.capture_config` every few seconds to honor pause/resume and FPS changes from the menubar.
    - Saves recordings in `~/screen-recordings/YYYY-MM-DD/webcam-TIMESTAMP.mp4`.
    - Rotates automatically at midnight.
 
+## Notes & Gotchas
+
+- **Restarting:** The LaunchAgent uses `KeepAlive`, so `pkill -f webcam-capture-daemon` is sufficient to restart — launchd relaunches it automatically.
+- **Camera permissions after Homebrew upgrades:** When ffmpeg is upgraded via `brew upgrade`, the new binary loses its TCC camera permission. Re-grant Camera access in System Settings after each upgrade.
+- **FPS changes:** The webcam FPS can be adjusted from the [CaptureMenuApp](https://github.com/msmolkin/screen-capture-daemon#capturemenuapp-menubar-controller) menubar. Changes are written to `~/.capture_config` as `WEBCAM_FPS=<value>` and take effect on the next recording segment.
+
 ## Companion Tool
 
-For a complete setup, check out the [Screen Capture Daemon](https://github.com/msmolkin/screen-capture-daemon), which records all your connected screens in the background.
+For a complete setup, check out the [Screen Capture Daemon](https://github.com/msmolkin/screen-capture-daemon), which records all your connected screens in the background and includes the CaptureMenuApp menubar controller.
 
 ## Support
 
