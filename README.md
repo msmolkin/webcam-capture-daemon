@@ -10,6 +10,7 @@ Designed to be a "set and forget" companion to the [screen capture daemon](https
 - **Background Operation:** Runs as a macOS LaunchAgent.
 - **Robustness:** Handles system sleep/wake and automatic daily rotation.
 - **Low Impact:** Captures at 640px wide with high compression to minimize CPU and disk usage.
+- **Pause/Resume:** Supports pause and resume via `~/.capture_config` (controlled by the [CaptureMenuApp](https://github.com/msmolkin/screen-capture-daemon#capturemenuapp-menubar-controller) menubar controller).
 
 ## Installation
 
@@ -42,12 +43,39 @@ Load the service:
 launchctl load -w ~/Library/LaunchAgents/com.michaelcli.webcam-capture.plist
 ```
 
-### 4. Grant Permissions
+### 4. Grant Camera Permissions
 
-macOS requires explicit permission for an application to access the camera:
-1. When the daemon first runs, you should see a system prompt asking if `ffmpeg` can access the camera.
-2. **Click "Allow".**
-3. You can verify permissions in **System Settings > Privacy & Security > Camera**.
+macOS requires explicit Camera access for the webcam daemon. Without it, ffmpeg will fail with:
+```
+Failed to create AV capture input device: Cannot use FaceTime HD Camera (Built-in)
+Error opening input: Input/output error
+```
+
+**Steps:**
+
+1. **Run the daemon manually once from Terminal:**
+   ```bash
+   /usr/local/bin/webcam-capture-daemon.sh
+   ```
+   macOS should display a system prompt asking if `ffmpeg` (or `bash`) can access the camera. **Click "Allow".**
+
+2. **Verify in System Settings > Privacy & Security > Camera.** Ensure the following are toggled **ON**:
+   - **Terminal** (or **iTerm2**)
+   - **/bin/bash** — when the daemon runs via LaunchAgent, macOS TCC attributes the camera request to `bash`, not to `ffmpeg`
+   - **ffmpeg** — if it appears in the list
+
+3. **If the permission prompt never appeared**, trigger it manually:
+   ```bash
+   ffmpeg -f avfoundation -framerate 1 -i 0 -t 1 -y /tmp/test-webcam.mp4
+   ```
+
+4. **After granting permissions**, restart the daemon:
+   ```bash
+   launchctl stop com.michaelcli.webcam-capture
+   launchctl start com.michaelcli.webcam-capture
+   ```
+
+**Note:** The "Screen Recording" permission (in the same Privacy & Security panel) is separate and only needed for the [Screen Capture Daemon](https://github.com/msmolkin/screen-capture-daemon). The webcam daemon only needs Camera access.
 
 ## How It Works
 

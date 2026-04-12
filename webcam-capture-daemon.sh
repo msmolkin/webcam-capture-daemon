@@ -3,6 +3,7 @@
 # Handles:
 #   - Sleep/wake (ffmpeg dies on sleep, restarts on wake)
 #   - Midnight rotation
+#   - Pause/resume via ~/.capture_config (written by CaptureMenuApp)
 
 # Prevent duplicate instances
 LOCKFILE="/tmp/webcam-capture-daemon-$(id -u).lock"
@@ -20,30 +21,41 @@ LOG_DIR="$CAPTURE_DIR/logs"
 mkdir -p "$LOG_DIR"
 
 # Clean up any orphaned ffmpeg processes from previous runs that might be hogging CPU
-pkill -f "ffmpeg.*avfoundation.*-i 0" || true
+pkill -f "ffmpeg.*avfoundation.*-i [0-9]+" || true
 
-# Configurable FPS for webcam
-WEBCAM_FPS=1
-
-echo "[$(date)] Webcam Daemon starting (PID $$) at $WEBCAM_FPS FPS"
-
-# Find FaceTime HD Camera index
-DEVICE_INDEX=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 | grep "FaceTime HD Camera" | head -n 1 | sed -E 's/.*\[([0-9]+)\].*/\1/')
-
-if [ -z "$DEVICE_INDEX" ]; then
-  echo "[$(date)] No webcam detected. Retrying in 60s..."
-  sleep 60
-  exit 1
-fi
+echo "[$(date)] Webcam Daemon starting (PID $$)"
 
 while true; do
+  # --- READ FRONTEND CONFIG ---
+  CAPTURE_CONFIG="$HOME/.capture_config"
+  if [ -f "$CAPTURE_CONFIG" ]; then
+    source "$CAPTURE_CONFIG"
+  fi
+  WEBCAM_CAPTURE_STATE="${WEBCAM_CAPTURE_STATE:-active}"
+  WEBCAM_FPS="${WEBCAM_FPS:-1}"
+
+  if [ "$WEBCAM_CAPTURE_STATE" = "paused" ]; then
+    sleep 5
+    continue
+  fi
+  # ----------------------------
+
+  # Find FaceTime HD Camera index
+  DEVICE_INDEX=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 | grep "FaceTime HD Camera" | head -n 1 | sed -E 's/.*\[([0-9]+)\].*/\1/')
+
+  if [ -z "$DEVICE_INDEX" ]; then
+    echo "[$(date)] No FaceTime HD Camera detected (lid might be closed). Sleeping for 60s..."
+    sleep 60
+    continue
+  fi
+
   DATE=$(date +%Y-%m-%d)
   TIMESTAMP=$(date +%Y%m%d-%H%M%S)
   OUTPUT_DIR="$CAPTURE_DIR/$DATE"
   mkdir -p "$OUTPUT_DIR"
-  
+
   OUTFILE="$OUTPUT_DIR/webcam-${TIMESTAMP}.mp4"
-  echo "[$(date)] Starting webcam capture -> $(basename "$OUTFILE")"
+  echo "[$(date)] Starting webcam capture -> $(basename "$OUTFILE") on device $DEVICE_INDEX"
 
   # Calculate seconds until midnight
   NOW=$(date +%s)
@@ -63,6 +75,19 @@ while true; do
   # Watchdog: wait for ffmpeg to exit or midnight
   while kill -0 "$FFMPEG_PID" 2>/dev/null; do
     sleep 5
+
+    # Re-read config to honor pause while recording
+    if [ -f "$CAPTURE_CONFIG" ]; then
+      source "$CAPTURE_CONFIG"
+    fi
+    WEBCAM_CAPTURE_STATE="${WEBCAM_CAPTURE_STATE:-active}"
+    if [ "$WEBCAM_CAPTURE_STATE" = "paused" ]; then
+      echo "[$(date)] Pause requested — stopping webcam ffmpeg (PID $FFMPEG_PID)"
+      kill "$FFMPEG_PID" 2>/dev/null || true
+      wait "$FFMPEG_PID" 2>/dev/null
+      break
+    fi
+
     CURRENT_DATE=$(date +%Y-%m-%d)
     if [ "$CURRENT_DATE" != "$DATE" ]; then
       kill "$FFMPEG_PID" 2>/dev/null || true
